@@ -1,0 +1,3 @@
+NanumSquare Neo (나눔스퀘어 네오) - Copyright (c) NAVER Corporation
+Licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org)
+Source: npm package "nanumsquareneo" (https://github.com/eunchurn/NanumSquareNeo)
