@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="MLB MKT 채승룡">
+<title>MLB 카테고리별 매출 비중 분석 (27SS IMC PLAN 대비)</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+/* ---------- 테마 토큰 (라이트/다크 자동) ---------- */
+:root {
+  --color-fg: #1f1e1d; --color-fg-muted: #6b6a68; --color-bg: #ffffff; --color-panel: #f6f5f3;
+  --color-border-line: #e3e1dc; --color-ok: #2b8a3e; --color-warn: #e8a400; --color-bad: #c92a2a;
+  --font-anthropic-sans: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Noto Serif KR", Georgia, "Times New Roman", serif;
+  --cds-font-size-caption: 12px; --cds-font-size-body: 14px; --cds-font-size-heading: 18px; --cds-font-size-title: 28px;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 12px; --cds-gap-lg: 16px; --cds-gap-xl: 24px;
+  --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 16px; --cds-radius: 8px;
+  --cds-chart-muted: #a8a6a1; --cds-chart-grid: #ecebe7; --cds-chart-axis: #c9c7c1; --cds-chart-reference: #8e8c87;
+  --cds-text-secondary: #6b6a68; --cds-surface-popover: #ffffff; --cds-border: #dcdad5; --cds-shadow-popover: 0 4px 16px rgba(0,0,0,.12);
+  --c1: #2f6fdb; --c2: #e8590c; --c3: #2b8a3e; --c4: #c2255c; --c5: #7048e8; --c6: #0b7285; --c7: #b08900; --c8: #5c940d; --c9: #a61e4d; --c10: #495057;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-fg: #ecebe8; --color-fg-muted: #a3a19c; --color-bg: #1c1b1a; --color-panel: #262523; --color-border-line: #3a3936;
+    --cds-chart-muted: #77756f; --cds-chart-grid: #2f2e2b; --cds-chart-axis: #4a4844; --cds-chart-reference: #8e8c87;
+    --cds-text-secondary: #a3a19c; --cds-surface-popover: #2a2927; --cds-border: #45433f; --cds-shadow-popover: 0 4px 16px rgba(0,0,0,.5);
+    --c1: #6ea0f0; --c2: #ff8a4c; --c3: #5cc172; --c4: #f06595; --c5: #9775fa; --c6: #3bc9db; --c7: #e0b62e; --c8: #94d82d; --c9: #e64980; --c10: #adb5bd;
+  }
+}
+html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); }
+#dash-root { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; box-sizing: border-box; }
+.dash-select { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 28px 6px 10px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background-color: var(--color-bg); color: var(--color-fg); }
+.dash-skeleton { color: transparent !important; background: var(--color-panel); border-radius: 4px; }
+.ic-loading { padding: 48px 0; text-align: center; color: var(--color-fg-muted); }
+
+/* ---------- 대시보드 스타일 ---------- */
+.ic { display: grid; gap: calc(var(--cds-gap-xl) * 1.3); font-family: var(--font-anthropic-sans); }
+.ic h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0 0 var(--cds-gap-sm); text-wrap: balance; }
+.ic h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-xs); text-wrap: balance; }
+.ic h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: 0; }
+.ic p { margin: 0; line-height: 1.65; max-width: 76ch; }
+.ic b { font-variant-numeric: tabular-nums; }
+.ic-eyebrow { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .04em; margin-bottom: 4px; }
+.ic-sub, .ic-note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); line-height: 1.5; }
+.ic-sec { display: grid; gap: var(--cds-gap-md); }
+.ic-step { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-right: 6px; font-variant-numeric: tabular-nums; }
+.ic-controls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: end; }
+.ic-controls label { display: grid; gap: 4px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ic-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.ic-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 12px; background: var(--color-bg); color: var(--color-fg); border: 0; cursor: pointer; }
+.ic-seg button + button { border-left: 1px solid var(--color-border-line); }
+.ic-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+.ic-seg button:focus-visible, .ic-chip:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+.ic-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--cds-gap-md); }
+.ic-tile { border-top: 3px solid var(--color-border-line); padding-top: var(--cds-pad-sm); display: grid; gap: 4px; align-content: start; }
+.ic-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ic-val { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 1.7rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.ic-unit { font-size: var(--cds-font-size-body); color: var(--color-fg-muted); margin-left: 2px; }
+.ic-tablewrap { overflow-x: auto; max-height: 560px; overflow-y: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+.ic-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); font-variant-numeric: tabular-nums; }
+.ic-table th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: 8px 10px; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; z-index: 1; }
+.ic-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+.ic-table .num { text-align: right; }
+.ic-table th.sorted { color: var(--color-fg); }
+.ic-table td.code { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); white-space: normal; min-width: 140px; }
+.ic-table td.cat small { display: block; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.ic-table tr.main td:first-child { box-shadow: inset 3px 0 0 var(--color-warn); }
+.ic-bar { display: inline-block; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+.ic-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ic-chip { font: inherit; font-size: var(--cds-font-size-caption); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.ic-chip[aria-pressed="true"] { border-color: var(--color-fg); }
+.ic-chip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--cds-chart-muted); }
+.ic-chart { position: relative; min-height: 360px; }
+.ic-chart .ic-chips { margin-top: var(--cds-gap-sm); }
+.ic-chart .ic-chip[aria-pressed="true"] { background: var(--color-panel); font-weight: var(--cds-font-weight-medium); }
+.ic svg text { fill: var(--cds-text-secondary); font-size: var(--cds-font-size-caption); font-family: var(--font-anthropic-sans); }
+.ic .domain { stroke: var(--cds-chart-axis); }
+.ic .tick line { stroke: var(--cds-chart-grid); }
+.ic-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); box-shadow: var(--cds-shadow-popover); border-radius: var(--cds-radius); padding: 8px 10px; font-size: var(--cds-font-size-caption); white-space: nowrap; font-variant-numeric: tabular-nums; z-index: 3; }
+.ic-tip[hidden] { display: none; }
+.ic-tip b { display: block; margin-bottom: 2px; }
+.ic-tip span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.ic-multi { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--cds-gap-md); min-height: 200px; }
+.ic-mini { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: grid; gap: 4px; position: relative; min-width: 0; }
+.ic-mini .peak { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ic-mini .peak b { color: var(--color-fg); }
+.ic-legend { display: flex; gap: var(--cds-gap-md); flex-wrap: wrap; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ic-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ic-sw { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+.ic-sw.dash { background: repeating-linear-gradient(90deg, var(--cds-chart-muted) 0 4px, transparent 4px 7px); }
+.ic-list { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; line-height: 1.6; max-width: 78ch; }
+.ic-tl { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; min-height: 260px; position: relative; }
+.ic-tl::before { content: ""; position: absolute; left: 0; right: 0; top: 15px; height: 2px; background: var(--color-border-line); }
+.ic-tl-col { display: grid; gap: 6px; align-content: start; min-width: 0; position: relative; }
+.ic-tl-m { justify-self: center; font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: 999px; padding: 4px 10px; z-index: 1; font-variant-numeric: tabular-nums; }
+.ic-tl-col.season-ss .ic-tl-m { border-color: var(--color-ok); }
+.ic-tl-card { border: 1px solid var(--color-border-line); border-left-width: 4px; border-radius: var(--cds-radius); padding: 6px 7px; display: grid; gap: 2px; background: var(--color-panel); min-width: 0; }
+.ic-tl-card .r { font-size: 10px; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.ic-tl-card .n { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); line-height: 1.3; overflow-wrap: anywhere; }
+.ic-tl-card .v { font-size: 10px; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .ic-tl { grid-template-columns: repeat(6, minmax(0, 1fr)); row-gap: 18px; } .ic-tl::before { display: none; } }
+@media (max-width: 560px) { .ic-tl { grid-template-columns: repeat(3, minmax(0, 1fr)); } #dash-root { padding: 20px 14px 48px; } }
+@media (max-width: 520px) { .ic-val { font-size: 1.4rem; } }
+</style>
+</head>
+<body>
+<div id="dash-root">
+<div class="ic-loading" id="ic-loading">데이터를 불러오는 중입니다…</div>
+<div class="ic" id="ic-app" hidden>
+  <header id="summary">
+    <div class="ic-eyebrow">MLB · 27SS IMC PLAN 기초분석</div>
+    <h1>MLB 카테고리별 매출 비중 분석 (27SS IMC PLAN 대비)</h1>
+    <p>26SS(2026년 2~8월) 국내 매출 1위는 <b data-draw="num" data-source="headline" data-field="kr_top" data-row="0">—</b>로, 국내 매출의 <b data-draw="num" data-source="headline" data-field="kr_top_pct" data-row="0" data-fmt="pct">—</b>%를 차지했습니다. 중국은 <b data-draw="num" data-source="headline" data-field="cn_top" data-row="0">—</b>가 <b data-draw="num" data-source="headline" data-field="cn_top_pct" data-row="0" data-fmt="pct">—</b>%로 1위입니다. 같은 브랜드라도 국가별 주력 카테고리가 다르니, IMC도 국내와 중국을 나눠 잡아야 합니다.</p>
+    <p class="ic-sub">국내·중국 실판매액(중국은 본사 원화 환산) · 25SS = 2025년 2~8월, 26SS = 2026년 2~8월(가정) · 2025년 1월 ~ 2026년 10월 · 2026-11-16 조회</p>
+    <p class="ic-sub">작성자: MLB MKT 채승룡</p>
+  </header>
+
+  <div class="ic-tiles" id="totals">
+    <div class="ic-tile">
+      <span class="ic-label">26SS 국내 매출</span>
+      <span><span class="ic-val" data-draw="num" data-source="totals" data-field="amt" data-where="key=kr26" data-fmt="int">—</span><span class="ic-unit">억</span></span>
+      <span class="ic-note">25SS <span data-draw="num" data-source="totals" data-field="amt" data-where="key=kr25" data-fmt="int">—</span>억 · 전년비 <span data-draw="num" data-source="totals" data-field="yoy" data-where="key=kr26" data-fmt="signpct">—</span>%</span>
+    </div>
+    <div class="ic-tile">
+      <span class="ic-label">26SS 중국 매출 (원화)</span>
+      <span><span class="ic-val" data-draw="num" data-source="totals" data-field="amt" data-where="key=cn26" data-fmt="int">—</span><span class="ic-unit">억</span></span>
+      <span class="ic-note">25SS <span data-draw="num" data-source="totals" data-field="amt" data-where="key=cn25" data-fmt="int">—</span>억 · 전년비 <span data-draw="num" data-source="totals" data-field="yoy" data-where="key=cn26" data-fmt="signpct">—</span>%</span>
+    </div>
+  </div>
+
+  <section class="ic-sec" id="ranking">
+    <div>
+      <h2><span class="ic-step">1차</span>시즌별 카테고리 매출과 비중</h2>
+      <p class="ic-note">비중은 해당 국가·해당 시즌 전체 매출 대비입니다. 기본 정렬은 26SS 국내 매출 순이고, 정렬 기준을 바꾸면 순위도 다시 매겨집니다. 왼쪽에 노란 선이 있는 행은 주요 카테고리입니다.</p>
+    </div>
+    <div class="ic-controls">
+      <label>보기 단위
+        <span class="ic-seg" data-group="level">
+          <button type="button" data-v="l2">대분류</button><button type="button" data-v="l3">세부 카테고리</button><button type="button" data-v="item">아이템×시즌</button>
+        </span>
+      </label>
+      <label for="ic-l1">구분
+        <select id="ic-l1" class="dash-select"><option value="">전체</option><option>의류</option><option>용품</option><option>신발</option></select>
+      </label>
+      <label for="ic-l2">대분류
+        <select id="ic-l2" class="dash-select"><option value="">전체</option><option>모자</option><option>신발</option><option>가방</option><option>상의</option><option>아우터</option><option>하의</option><option>기타 용품</option></select>
+      </label>
+      <label for="ic-sort">정렬 기준
+        <select id="ic-sort" class="dash-select"><option value="kr26">26SS 국내 매출</option><option value="cn26">26SS 중국 매출</option><option value="kr25">25SS 국내 매출</option><option value="cn25">25SS 중국 매출</option></select>
+      </label>
+    </div>
+    <div class="ic-tablewrap">
+      <table class="ic-table" id="rank-table">
+        <thead><tr>
+          <th class="num">순위</th>
+          <th>카테고리</th>
+          <th>포함코드</th>
+          <th class="num" data-s="kr26">26SS 매출(국내, 억)</th>
+          <th class="num">26SS 비중(국내)</th>
+          <th class="num" data-s="cn26">26SS 매출(중국, 억)</th>
+          <th class="num">26SS 비중(중국)</th>
+          <th class="num" data-s="kr25">25SS 매출(국내, 억)</th>
+          <th class="num" data-s="cn25">25SS 매출(중국, 억)</th>
+          <th class="num">전년비(국내)</th>
+          <th class="num">전년비(중국)</th>
+        </tr></thead>
+        <tbody data-draw="rankrows"></tbody>
+      </table>
+    </div>
+    <p class="ic-note">포함코드는 아이템코드[시즌구분]입니다(S=SS, F=FW, N=시즌리스). 예를 들어 썸머 볼캡은 CP[S]와 MC(메시캡), 여름신발은 SD(샌들)·LP(슬리퍼)·SQ(아쿠아슈즈)입니다.</p>
+  </section>
+
+  <section class="ic-sec" id="trend">
+    <div>
+      <h2><span class="ic-step">2차</span>월별 매출 추이</h2>
+      <p class="ic-note">2차는 1차와 별도로 보기 단위와 필터를 고를 수 있습니다. 기본 선택은 고른 보기 단위의 주요 항목입니다(26SS 국내 상위 8개 + 26SS 중국 비중 3% 이상). 아래 칩을 눌러 넣고 뺄 수 있습니다. 볼캡처럼 매출이 큰 카테고리 때문에 다른 선이 눌려 보이면 '지수'로 바꿔 보세요. 지수는 각 카테고리의 기간 중 최고 월을 100으로 놓은 값이라, 언제 가장 잘 팔리는지를 비교하기 좋습니다.</p>
+    </div>
+    <div class="ic-controls">
+      <label>보기 단위
+        <span class="ic-seg" data-group="tlevel">
+          <button type="button" data-v="l2">대분류</button><button type="button" data-v="l3">세부 카테고리</button><button type="button" data-v="item">아이템×시즌</button>
+        </span>
+      </label>
+      <label for="ic-tl1">구분
+        <select id="ic-tl1" class="dash-select"><option value="">전체</option><option>의류</option><option>용품</option><option>신발</option></select>
+      </label>
+      <label for="ic-tl2">대분류
+        <select id="ic-tl2" class="dash-select"><option value="">전체</option><option>모자</option><option>신발</option><option>가방</option><option>상의</option><option>아우터</option><option>하의</option><option>기타 용품</option></select>
+      </label>
+    </div>
+    <div class="ic-controls">
+      <label>국가
+        <span class="ic-seg" data-group="country"><button type="button" data-v="국내">국내</button><button type="button" data-v="중국">중국</button></span>
+      </label>
+      <label>값
+        <span class="ic-seg" data-group="scale"><button type="button" data-v="abs">매출(억)</button><button type="button" data-v="idx">지수(최고월=100)</button></span>
+      </label>
+      <label>선택
+        <span class="ic-seg" data-group="reset"><button type="button" data-v="main">주요 카테고리로</button></span>
+      </label>
+    </div>
+    <div class="ic-chips" data-draw="chips" aria-label="그래프에 표시할 카테고리"></div>
+    <div class="ic-chart" data-draw="trendchart" id="trend-chart"></div>
+    <p class="ic-note">점과 'n월' 표시는 각 카테고리의 연도별 최고 매출 월입니다. 2026년 11월은 진행 중이라 그래프에서 뺐습니다.</p>
+
+    <h3 id="multiples">카테고리별 월별 패턴 (2025년 vs 2026년)</h3>
+    <div class="ic-legend">
+      <span><i class="ic-sw dash"></i>2025년</span>
+      <span><i class="ic-sw" data-draw="sw"></i>2026년</span>
+    </div>
+    <div class="ic-multi" data-draw="multiples"></div>
+
+    <h3 id="peaks">피크월 = 푸시 포인트</h3>
+    <div class="ic-tablewrap">
+      <table class="ic-table">
+        <thead><tr>
+          <th>카테고리</th>
+          <th class="num">국내 2025 피크</th>
+          <th class="num">국내 2026 피크</th>
+          <th>국내 상위 3개월(평균)</th>
+          <th class="num">중국 2025 피크</th>
+          <th class="num">중국 2026 피크</th>
+          <th>중국 상위 3개월(평균)</th>
+          <th>푸시 시점 제안</th>
+        </tr></thead>
+        <tbody data-draw="peakrows"></tbody>
+      </table>
+    </div>
+    <p class="ic-note">'상위 3개월'은 월(1~12월)별 평균 매출이 큰 순서입니다. 2025년·2026년에 모두 있는 1~10월은 두 해 평균, 11~12월은 2025년 값입니다. '푸시 시점 제안'은 국내 최고 월과 그 앞뒤로 이어지는 상위 3개월 구간에, 수요가 오르기 직전 한 달을 더한 기간입니다. 분석 기준으로 잡은 제안이니 IMC 일정에 맞춰 조정하세요.</p>
+  </section>
+
+  <section class="ic-sec" id="timeline">
+    <div>
+      <h2><span class="ic-step">3차</span>월별 피크 아이템 타임라인</h2>
+      <p class="ic-note">1~12월 각 달에 가장 강한 아이템 3개입니다. '계절지수'는 그 달 매출을 해당 아이템의 월평균으로 나눈 값(100 = 평균)이라, 그 달에 특히 몰려 팔리는 아이템이 위로 옵니다. '매출액'은 그 달 매출 자체가 큰 순서입니다. 아래 '기준 연도'에서 2025년, 2026년, 2개년 평균 중 하나를 고를 수 있습니다. 계절지수는 해당 국가 매출 상위 25개 항목만 대상으로 했습니다. 3차는 1·2차와 별도로 필터를 고를 수 있습니다.</p>
+    </div>
+    <div class="ic-controls">
+      <label>보기 단위
+        <span class="ic-seg" data-group="xlevel">
+          <button type="button" data-v="l2">대분류</button><button type="button" data-v="l3">세부 카테고리</button><button type="button" data-v="item">아이템×시즌</button>
+        </span>
+      </label>
+      <label for="ic-xl1">구분
+        <select id="ic-xl1" class="dash-select"><option value="">전체</option><option>의류</option><option>용품</option><option>신발</option></select>
+      </label>
+      <label for="ic-xl2">대분류
+        <select id="ic-xl2" class="dash-select"><option value="">전체</option><option>모자</option><option>신발</option><option>가방</option><option>상의</option><option>아우터</option><option>하의</option><option>기타 용품</option></select>
+      </label>
+    </div>
+    <div class="ic-controls">
+      <label>국가
+        <span class="ic-seg" data-group="xcountry"><button type="button" data-v="국내">국내</button><button type="button" data-v="중국">중국</button></span>
+      </label>
+      <label>순위 기준
+        <span class="ic-seg" data-group="tlmode"><button type="button" data-v="idx">계절지수</button><button type="button" data-v="amt">매출액</button></span>
+      </label>
+      <label>기준 연도
+        <span class="ic-seg" data-group="xyear"><button type="button" data-v="avg">2개년 평균</button><button type="button" data-v="2025">2025년</button><button type="button" data-v="2026">2026년</button></span>
+      </label>
+    </div>
+    <p class="ic-note">지금 보는 기준: <b data-draw="ybasis">—</b></p>
+    <div class="ic-tl" data-draw="timeline" aria-label="월별 피크 아이템 상위 3개 타임라인"></div>
+
+    <h3 id="tl-bars">월별 Top 3 막대그래프</h3>
+    <p class="ic-note">각 달의 1·2·3위를 왼쪽부터 나란히 놓았습니다. 막대 높이는 위 '순위 기준'(계절지수 또는 매출액)을 따르고, 같은 색은 같은 아이템입니다. 옅은 배경은 SS 기간(2~8월), 계절지수 기준일 때 점선은 월평균(100)입니다. 아래 범례에서 아이템을 누르면 막대그래프와 꺾은선 그래프에서 함께 강조되고, 다시 누르면 풀립니다.</p>
+    <div class="ic-chart" data-draw="tlbars"></div>
+
+    <h3 id="tl-lines">Top 3 아이템의 월별 흐름</h3>
+    <p class="ic-note">위 타임라인에 한 번이라도 든 아이템의 1~12월 값을 꺾은선으로 그렸습니다. 큰 점은 그 아이템이 Top 3에 든 달입니다. 계절지수 기준일 때 점선은 월평균(100)입니다.</p>
+    <div class="ic-chart" data-draw="tllines"></div>
+  </section>
+
+  <section class="ic-sec" id="notes">
+    <h2>기준과 한계</h2>
+    <ul class="ic-list">
+      <li>데이터: F&amp;F 지식그래프 국가별 기간 판매(get_term_sales), MLB, 국내(KR)·중국(CN). 중국은 본사 원화 환산 금액입니다. 원본은 이 저장소의 data/ 폴더에 있습니다.</li>
+      <li>시즌 기간: SS = 2~8월, FW = 9월~다음 해 1월로 가정했습니다.</li>
+      <li>세부 카테고리는 아이템코드와 상품 시즌코드(S/F/N)로 묶었습니다. 볼캡처럼 시즌리스(N) 상품이 대부분인 아이템은 '썸머 볼캡'이 작게 나옵니다.</li>
+      <li>이 페이지는 2026-11-16에 조회한 데이터의 고정 사본입니다. 데이터를 새로 받으면 data/ 폴더의 파일만 바꾸면 됩니다.</li>
+    </ul>
+  </section>
+</div>
+</div>
+
+<!-- ---------- 실행기: 데이터 로드·계산·그리기 (Claude 대시보드 런타임의 최소 대체) ---------- -->
+<script>
+window.dash = (() => {
+  const DEFAULTS = { cats: [], country: '국내', l1: '', l2: '', level: 'l3', scale: 'abs', sort: 'kr26', tl1: '', tl2: '', tlevel: 'l3', tlmode: 'idx', xcountry: '국내', xl1: '', xl2: '', xlevel: 'l3', xyear: 'avg' };
+  const st = { params: { ...DEFAULTS }, raw: null, status: 'loading', message: '', calcs: {}, cache: {}, draws: {}, onData: [] };
+  const colors = Array.from({ length: 10 }, (_, i) => `var(--c${i + 1})`);
+  const api = {
+    colors,
+    params: () => ({ ...st.params }),
+    setParams(p) { Object.assign(st.params, p); st.cache = {}; render(); },
+    resetParams() { st.params = { ...DEFAULTS }; st.cache = {}; render(); },
+    setLink() {},
+    calc(id, def) { st.calcs[id] = def; },
+    loader() {},
+    data(id) {
+      if (id === 'sales') return { status: st.raw ? 'ok' : st.status, data: st.raw || [], message: st.message };
+      const c = st.calcs[id];
+      if (!c) return { status: 'missing', data: [] };
+      if (!st.raw) return { status: st.status, data: null, message: st.message };
+      if (!(id in st.cache)) {
+        try { st.cache[id] = c.fn(...c.inputs.map((i) => api.data(i).data)); }
+        catch (e) { console.error('calc', id, e); st.cache[id] = { __err: e }; }
+      }
+      const v = st.cache[id];
+      return v && v.__err ? { status: 'error', data: null, message: String(v.__err) } : { status: 'ok', data: v };
+    },
+    draw(name, fn) {
+      if (fn) { st.draws[name] = fn; return; }
+      document.querySelectorAll(`[data-draw="${name}"]`).forEach((el) => run(name, el));
+    },
+    onData(fn) { st.onData.push(fn); },
+    _load(rows) { st.raw = rows; st.status = 'ok'; st.cache = {}; },
+    _fail(msg) { st.status = 'error'; st.message = msg; },
+    _render: () => render()
+  };
+  function run(name, el) { const f = st.draws[name]; if (!f) return; try { f(el); } catch (e) { console.error('draw', name, e); } }
+  function render() {
+    st.onData.forEach((f) => { try { f(); } catch (e) { console.error(e); } });
+    document.querySelectorAll('[data-draw]').forEach((el) => run(el.getAttribute('data-draw'), el));
+  }
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+  return api;
+})();
+</script>
+
+<!-- ---------- 대시보드 계산과 그래프 ---------- -->
+<script>
+window.icFmt = {
+  int: (v) => d3.format(',.0f')(v), dec1: (v) => d3.format(',.1f')(v), pct: (v) => v.toFixed(1),
+  signpct: (v) => (v > 0 ? '+' : '') + v.toFixed(1)
+};
+window.icKey = (r, level) => level === 'l2' ? r.l2 : (level === 'l3' ? r.l3 : r.item + '·' + r.season_type);
+window.icLabel = (r, level) => level === 'l2' ? r.l2 : (level === 'l3' ? r.l3 : r.item_nm + ' [' + r.season_type + ']');
+window.icP = () => {
+  const p = dash.params();
+  return { level: p.level || 'l3', l1: p.l1 || '', l2: p.l2 || '', sort: p.sort || 'kr26', tlevel: p.tlevel || 'l3', tl1: p.tl1 || '', tl2: p.tl2 || '', xlevel: p.xlevel || 'l3', xl1: p.xl1 || '', xl2: p.xl2 || '', xcountry: p.xcountry || '국내', country: p.country || '국내', scale: p.scale || 'abs', tlmode: p.tlmode || 'idx', xyear: ['2025', '2026'].includes(p.xyear) ? p.xyear : 'avg', cats: Array.isArray(p.cats) ? p.cats : [] };
+};
+window.icMonthName = (ym) => Number(ym.slice(5, 7)) + '월';
+/* 3차 기준 연도: 2026년은 10월까지 집계(11월 진행 중) */
+window.icYears = (xyear, m) => xyear === '2025' ? ['2025'] : (xyear === '2026' ? (m <= 10 ? ['2026'] : []) : (m <= 10 ? ['2025', '2026'] : ['2025']));
+window.icYearText = (xyear) => xyear === '2025' ? '2025년 1~12월 실적' : (xyear === '2026' ? '2026년 1~10월 실적 (11·12월은 집계 전이라 비어 있음)' : '2개년 평균: 1~10월은 2025·2026년 평균, 11~12월은 2025년 실적');
+
+dash.calc('totals', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const s = (c, p) => sales.filter((r) => r.country === c && r.period === p).reduce((t, r) => t + Number(r.amt), 0);
+    const k25 = s('국내', '25SS'), k26 = s('국내', '26SS'), c25 = s('중국', '25SS'), c26 = s('중국', '26SS');
+    return [
+      { key: 'kr25', amt: Math.round(k25 / 1e8), yoy: null }, { key: 'kr26', amt: Math.round(k26 / 1e8), yoy: Math.round((k26 / k25 - 1) * 1000) / 10 },
+      { key: 'cn25', amt: Math.round(c25 / 1e8), yoy: null }, { key: 'cn26', amt: Math.round(c26 / 1e8), yoy: Math.round((c26 / c25 - 1) * 1000) / 10 }
+    ];
+  }
+});
+
+window.icAgg = (sales, level) => {
+  const m = new Map();
+  const tot = { '국내|25SS': 0, '국내|26SS': 0, '중국|25SS': 0, '중국|26SS': 0 };
+  for (const r of sales) {
+    const tk = r.country + '|' + r.period;
+    if (tk in tot) tot[tk] += Number(r.amt);
+    const k = window.icKey(r, level);
+    if (!m.has(k)) m.set(k, { key: k, label: window.icLabel(r, level), l1: r.l1, l2: r.l2, l3: r.l3, codes: new Map(), kr25: 0, kr26: 0, cn25: 0, cn26: 0 });
+    const g = m.get(k);
+    if (!g.codes.has(r.item)) g.codes.set(r.item, new Set());
+    g.codes.get(r.item).add(r.season_type === 'SS' ? 'S' : (r.season_type === 'FW' ? 'F' : 'N'));
+    if (tk in tot) g[(r.country === '국내' ? 'kr' : 'cn') + r.period.slice(0, 2)] += Number(r.amt);
+  }
+  return { groups: [...m.values()], tot };
+};
+window.icMain = (groups, tot) => {
+  const byKr = [...groups].sort((a, b) => b.kr26 - a.kr26);
+  const top = byKr.slice(0, 8).map((g) => g.key);
+  for (const g of byKr.slice(8)) if (g.cn26 / tot['중국|26SS'] >= 0.03) top.push(g.key);
+  return top;
+};
+
+dash.calc('rank', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const P = window.icP();
+    const { groups, tot } = window.icAgg(sales, P.level);
+    const main = new Set(window.icMain(groups, tot));
+    const e = (v) => Math.round(v / 1e7) / 10;
+    const pc = (v, t) => Math.round(v / t * 1000) / 10;
+    const rows = groups.filter((g) => (!P.l1 || g.l1 === P.l1) && (!P.l2 || g.l2 === P.l2)).map((g) => ({
+      key: g.key, label: g.label, l1: g.l1, l2: g.l2, l3: g.l3, main: main.has(g.key),
+      codes: [...g.codes.entries()].sort().map(([i, s]) => i + '[' + [...s].sort().join('·') + ']').join(', '),
+      kr26: e(g.kr26), kr26_pct: pc(g.kr26, tot['국내|26SS']), cn26: e(g.cn26), cn26_pct: pc(g.cn26, tot['중국|26SS']),
+      kr25: e(g.kr25), kr25_pct: pc(g.kr25, tot['국내|25SS']), cn25: e(g.cn25), cn25_pct: pc(g.cn25, tot['중국|25SS']),
+      kr_yoy: g.kr25 > 0 ? Math.round((g.kr26 / g.kr25 - 1) * 1000) / 10 : null,
+      cn_yoy: g.cn25 > 0 ? Math.round((g.cn26 / g.cn25 - 1) * 1000) / 10 : null
+    })).filter((r) => r.kr26 || r.cn26 || r.kr25 || r.cn25);
+    rows.sort((a, b) => b[P.sort] - a[P.sort]);
+    rows.forEach((r, i) => { r.rank = i + 1; });
+    return rows;
+  }
+});
+
+dash.calc('headline', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const { groups, tot } = window.icAgg(sales, 'l3');
+    const k = [...groups].sort((a, b) => b.kr26 - a.kr26)[0], c = [...groups].sort((a, b) => b.cn26 - a.cn26)[0];
+    return [{ kr_top: k.label, kr_top_pct: Math.round(k.kr26 / tot['국내|26SS'] * 1000) / 10, cn_top: c.label, cn_top_pct: Math.round(c.cn26 / tot['중국|26SS'] * 1000) / 10 }];
+  }
+});
+
+window.icSelected = (sales, P) => {
+  const { groups, tot } = window.icAgg(sales, P.tlevel);
+  const allowed = groups.filter((g) => (!P.tl1 || g.l1 === P.tl1) && (!P.tl2 || g.l2 === P.tl2));
+  const ok = new Set(allowed.map((g) => g.key));
+  let sel = P.cats.filter((k) => ok.has(k));
+  if (!P.cats.length) {
+    sel = window.icMain(groups, tot).filter((k) => ok.has(k));
+    if (sel.length < 3) sel = [...allowed].sort((a, b) => b.kr26 - a.kr26).slice(0, 8).map((g) => g.key);
+  }
+  return { sel, allowed, labels: new Map(groups.map((g) => [g.key, g.label])) };
+};
+
+dash.calc('opts', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const P = window.icP();
+    const { sel, allowed } = window.icSelected(sales, P);
+    const s = new Set(sel);
+    return [...allowed].sort((a, b) => b.kr26 - a.kr26).slice(0, 40).map((g) => ({ key: g.key, label: g.label, kr26: Math.round(g.kr26 / 1e7) / 10, selected: s.has(g.key), order: sel.indexOf(g.key) }));
+  }
+});
+
+dash.calc('trend', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const P = window.icP();
+    const { sel, labels } = window.icSelected(sales, P);
+    const set = new Set(sel);
+    const m = new Map();
+    for (const r of sales) {
+      if (r.ym > '2026-10') continue;
+      const k = window.icKey(r, P.tlevel);
+      if (!set.has(k)) continue;
+      const id = r.country + '|' + k + '|' + r.ym;
+      if (!m.has(id)) m.set(id, { country: r.country, key: k, label: labels.get(k), ym: r.ym, amt: 0 });
+      m.get(id).amt += Number(r.amt);
+    }
+    return [...m.values()].map((x) => ({ ...x, amt_eok: Math.round(x.amt / 1e6) / 100, order: sel.indexOf(x.key) })).map(({ amt, ...x }) => x);
+  }
+});
+
+dash.calc('peaks', {
+  inputs: ['trend'],
+  fn: (trend) => {
+    const keys = [...new Map(trend.map((r) => [r.key, r])).values()].sort((a, b) => a.order - b.order);
+    const pk = (rows, yr) => {
+      const R = rows.filter((r) => r.ym.startsWith(yr));
+      if (!R.length) return '-';
+      const b = R.reduce((a, r) => (r.amt_eok > a.amt_eok ? r : a));
+      return b.amt_eok > 0 ? Number(b.ym.slice(5, 7)) + '월' : '-';
+    };
+    const top3 = (rows) => {
+      const by = new Map();
+      for (const r of rows) { const mm = Number(r.ym.slice(5, 7)); if (!by.has(mm)) by.set(mm, []); by.get(mm).push(r.amt_eok); }
+      return [...by.entries()].map(([mm, v]) => [mm, v.reduce((a, b) => a + b, 0) / v.length]).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]);
+    };
+    return keys.map((k) => {
+      const kr = trend.filter((r) => r.key === k.key && r.country === '국내'), cn = trend.filter((r) => r.key === k.key && r.country === '중국');
+      const t = top3(kr), tc = top3(cn);
+      const prev = (mm) => ((mm + 10) % 12) + 1, next = (mm) => (mm % 12) + 1;
+      let push = '-';
+      if (t.length) {
+        const inTop = new Set(t);
+        let s = t[0], e = t[0];
+        while (inTop.has(prev(s)) && prev(s) !== t[0]) s = prev(s);
+        while (inTop.has(next(e)) && next(e) !== s) e = next(e);
+        push = `${prev(s)}월 ~ ${e}월`;
+      }
+      return { key: k.key, label: k.label, kr_p25: pk(kr, '2025'), kr_p26: pk(kr, '2026'), kr_top3: t.map((m) => m + '월').join(' · '), cn_p25: pk(cn, '2025'), cn_p26: pk(cn, '2026'), cn_top3: tc.map((m) => m + '월').join(' · '), push };
+    });
+  }
+});
+
+window.icSeason = (sales, P) => {
+  const R = sales.filter((r) => r.country === P.xcountry && r.ym <= '2026-10' && (!P.xl1 || r.l1 === P.xl1) && (!P.xl2 || r.l2 === P.xl2));
+  const g = new Map();
+  for (const r of R) {
+    const k = window.icKey(r, P.xlevel);
+    if (!g.has(k)) g.set(k, { key: k, label: window.icLabel(r, P.xlevel), ym: new Map(), total: 0 });
+    const x = g.get(k);
+    x.ym.set(r.ym, (x.ym.get(r.ym) || 0) + Number(r.amt));
+    x.total += Number(r.amt);
+  }
+  const items = [...g.values()].map((x) => {
+    const mavg = d3.range(1, 13).map((m) => {
+      const mm = String(m).padStart(2, '0');
+      const ys = window.icYears(P.xyear, m);
+      if (!ys.length) return null;
+      return ys.reduce((t, y) => t + (x.ym.get(y + '-' + mm) || 0), 0) / ys.length;
+    });
+    const have = mavg.filter((v) => v !== null);
+    const avg = have.length ? have.reduce((a, b) => a + b, 0) / have.length : 0;
+    return { key: x.key, label: x.label, total: x.total, mavg, avg };
+  }).filter((x) => x.avg > 0);
+  const top = [...items].sort((a, b) => b.total - a.total).slice(0, 25);
+  return { pool: P.tlmode === 'idx' ? top : items, top };
+};
+
+dash.calc('timeline', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const P = window.icP();
+    const { pool } = window.icSeason(sales, P);
+    const out = [];
+    for (let m = 1; m <= 12; m++) {
+      if (!window.icYears(P.xyear, m).length) continue;
+      const ranked = pool.map((x) => ({ x, amt: x.mavg[m - 1], idx: x.mavg[m - 1] / x.avg * 100 }))
+        .sort((a, b) => (P.tlmode === 'idx' ? b.idx - a.idx : b.amt - a.amt)).slice(0, 3);
+      ranked.forEach((r, i) => out.push({ month: m, rank: i + 1, key: r.x.key, label: r.x.label, amt_eok: Math.round(r.amt / 1e7) / 10, season_idx: Math.round(r.idx) }));
+    }
+    return out;
+  }
+});
+
+dash.calc('heat', {
+  inputs: ['sales'],
+  fn: (sales) => {
+    const P = window.icP();
+    const { pool } = window.icSeason(sales, P);
+    const rows = [];
+    pool.forEach((x) => {
+      x.mavg.forEach((v, i) => rows.push({ key: x.key, label: x.label, month: i + 1, amt_eok: v === null ? null : Math.round(v / 1e7) / 10, season_idx: v === null ? null : Math.round(v / x.avg * 100) }));
+    });
+    return rows;
+  }
+});
+
+/* ---------- 그리기 ---------- */
+window.icTip = (host) => { const t = document.createElement('div'); t.className = 'ic-tip'; t.hidden = true; host.append(t); return t; };
+window.icColor = (i) => dash.colors[i % dash.colors.length];
+window.icFail = (el) => { const p = document.createElement('p'); p.className = 'ic-note'; p.textContent = '불러오지 못했습니다'; el.append(p); };
+
+dash.draw('num', (el) => {
+  const d = dash.data(el.getAttribute('data-source'));
+  let row = null;
+  if (d.status === 'ok' && Array.isArray(d.data)) {
+    const w = el.getAttribute('data-where');
+    if (w) { const [k, v] = w.split('='); row = d.data.find((r) => String(r[k]) === decodeURIComponent(v)); }
+    else row = d.data[Number(el.getAttribute('data-row') || 0)];
+  }
+  const v = row ? row[el.getAttribute('data-field')] : null;
+  const f = window.icFmt[el.getAttribute('data-fmt')];
+  el.textContent = v === null || v === undefined ? '—' : (f ? f(v) : String(v));
+});
+dash.draw('sw', (el) => { el.style.background = dash.colors[0]; });
+dash.draw('ybasis', (el) => { el.textContent = window.icYearText(window.icP().xyear); });
+
+dash.onData(() => {
+  const P = window.icP();
+  document.querySelectorAll('.ic-seg[data-group]').forEach((g) => {
+    const cur = { level: P.level, tlevel: P.tlevel, xlevel: P.xlevel, country: P.country, xcountry: P.xcountry, scale: P.scale, tlmode: P.tlmode, xyear: P.xyear }[g.getAttribute('data-group')];
+    g.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === cur)));
+  });
+  const sync = (id, v) => document.querySelectorAll('#' + id).forEach((s) => { if (document.activeElement !== s) s.value = v; });
+  sync('ic-l1', P.l1); sync('ic-l2', P.l2); sync('ic-sort', P.sort); sync('ic-tl1', P.tl1); sync('ic-tl2', P.tl2); sync('ic-xl1', P.xl1); sync('ic-xl2', P.xl2);
+  document.querySelectorAll('#rank-table th[data-s]').forEach((th) => th.classList.toggle('sorted', th.getAttribute('data-s') === P.sort));
+});
+document.querySelectorAll('.ic-seg[data-group]').forEach((g) => {
+  g.addEventListener('click', (ev) => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const grp = g.getAttribute('data-group'), v = b.getAttribute('data-v');
+    if (grp === 'reset') dash.setParams({ cats: [] });
+    else if (grp === 'tlevel') dash.setParams({ tlevel: v, cats: [] });
+    else dash.setParams({ [grp]: v });
+  });
+});
+[['ic-l1', 'l1'], ['ic-l2', 'l2'], ['ic-xl1', 'xl1'], ['ic-xl2', 'xl2'], ['ic-sort', 'sort']].forEach(([id, k]) =>
+  document.querySelectorAll('#' + id).forEach((s) => s.addEventListener('change', () => dash.setParams({ [k]: s.value }))));
+[['ic-tl1', 'tl1'], ['ic-tl2', 'tl2']].forEach(([id, k]) =>
+  document.querySelectorAll('#' + id).forEach((s) => s.addEventListener('change', () => dash.setParams({ [k]: s.value, cats: [] }))));
+
+dash.draw('rankrows', (tb) => {
+  const d = dash.data('rank');
+  tb.replaceChildren();
+  if (d.status !== 'ok' || !Array.isArray(d.data)) return;
+  const P = window.icP();
+  const max = d3.max(d.data, (r) => r[P.sort]) || 1;
+  const pc = (v) => (v === null || v === undefined ? '-' : v.toFixed(1) + '%');
+  const yy = (v) => (v === null ? '-' : (v > 0 ? '+' : '') + v.toFixed(1) + '%');
+  for (const r of d.data) {
+    const tr = document.createElement('tr'); if (r.main) tr.className = 'main';
+    const td = (txt, cls) => { const c = document.createElement('td'); c.textContent = txt; if (cls) c.className = cls; tr.append(c); return c; };
+    td(String(r.rank), 'num');
+    const cat = td('', 'cat'); cat.append(document.createTextNode(r.label));
+    const sm = document.createElement('small'); sm.textContent = P.level === 'l2' ? r.l1 : (P.level === 'l3' ? r.l1 + ' · ' + r.l2 : r.l2 + ' · ' + r.l3); cat.append(sm);
+    td(r.codes, 'code');
+    const bar = document.createElement('span'); bar.className = 'ic-bar'; bar.style.width = Math.max(2, r[P.sort] / max * 48) + 'px'; bar.style.background = dash.colors[0];
+    const k26 = td('', 'num'); if (P.sort === 'kr26') k26.append(bar); k26.append(document.createTextNode(d3.format(',.1f')(r.kr26)));
+    td(pc(r.kr26_pct), 'num');
+    const c26 = td('', 'num'); if (P.sort === 'cn26') c26.append(bar); c26.append(document.createTextNode(d3.format(',.1f')(r.cn26)));
+    td(pc(r.cn26_pct), 'num');
+    const k25 = td('', 'num'); if (P.sort === 'kr25') k25.append(bar); k25.append(document.createTextNode(d3.format(',.1f')(r.kr25)));
+    const c25 = td('', 'num'); if (P.sort === 'cn25') c25.append(bar); c25.append(document.createTextNode(d3.format(',.1f')(r.cn25)));
+    td(yy(r.kr_yoy), 'num'); td(yy(r.cn_yoy), 'num');
+    tb.append(tr);
+  }
+});
+
+dash.draw('chips', (el) => {
+  const d = dash.data('opts');
+  el.replaceChildren();
+  if (d.status !== 'ok' || !Array.isArray(d.data)) return;
+  const cur = d.data.filter((o) => o.selected).sort((a, b) => a.order - b.order).map((o) => o.key);
+  for (const o of d.data) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ic-chip'; b.setAttribute('aria-pressed', String(o.selected));
+    const dot = document.createElement('i'); if (o.selected) dot.style.background = window.icColor(o.order);
+    b.append(dot, document.createTextNode(o.label));
+    b.addEventListener('click', () => {
+      const next = o.selected ? cur.filter((k) => k !== o.key) : [...cur, o.key];
+      dash.setParams({ cats: next.length ? next : ['__none__'] });
+    });
+    el.append(b);
+  }
+});
+
+dash.draw('trendchart', (el) => {
+  const d = dash.data('trend');
+  el.replaceChildren();
+  if (d.status === 'error') { window.icFail(el); return; }
+  if (d.status !== 'ok' || !Array.isArray(d.data)) return;
+  const P = window.icP();
+  const rows = d.data.filter((r) => r.country === P.country);
+  if (!rows.length) { const p = document.createElement('p'); p.className = 'ic-note'; p.textContent = '선택된 카테고리가 없습니다. 위 칩을 눌러 추가하세요.'; el.append(p); return; }
+  const months = []; for (let y = 2025; y <= 2026; y++) for (let m = 1; m <= 12; m++) { const ym = y + '-' + String(m).padStart(2, '0'); if (ym <= '2026-10') months.push(ym); }
+  const series = [...d3.group(rows, (r) => r.key)].map(([key, R]) => {
+    const by = new Map(R.map((r) => [r.ym, r.amt_eok]));
+    const vals = months.map((ym) => by.get(ym) || 0);
+    const mx = d3.max(vals) || 1;
+    return { key, label: R[0].label, order: R[0].order, raw: vals, vals: P.scale === 'idx' ? vals.map((v) => v / mx * 100) : vals };
+  }).sort((a, b) => a.order - b.order);
+  const W = el.clientWidth || 700, H = 360, m = { t: 16, r: 14, b: 30, l: 48 };
+  const x = d3.scalePoint().domain(months).range([m.l, W - m.r]);
+  const y = d3.scaleLinear().domain([0, d3.max(series, (s) => d3.max(s.vals)) * 1.08 || 1]).nice().range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', `${P.country} 주요 카테고리 월별 매출 추이 꺾은선 그래프`);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSize(-(W - m.l - m.r)).tickFormat((v) => P.scale === 'idx' ? v : d3.format(',')(v))).call((g) => g.select('.domain').remove());
+  const step = W < 480 ? 4 : (W < 800 ? 2 : 1);
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickSizeOuter(0).tickValues(months.filter((_, i) => i % step === 0)).tickFormat((ym) => ym.slice(2, 4) + '.' + ym.slice(5)));
+  svg.append('line').attr('x1', x('2026-01')).attr('x2', x('2026-01')).attr('y1', m.t).attr('y2', H - m.b).style('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '3 3');
+  const lbl = [];
+  series.forEach((s) => {
+    const c = window.icColor(s.order);
+    svg.append('path').datum(s.vals).attr('fill', 'none').style('stroke', c).attr('stroke-width', 2).attr('d', d3.line().x((_, i) => x(months[i])).y((v) => y(v)));
+    ['2025', '2026'].forEach((yr) => {
+      const idx = months.map((ym, i) => [ym, i]).filter(([ym]) => ym.startsWith(yr)).map(([, i]) => i);
+      const bi = idx.reduce((a, i) => (s.raw[i] > s.raw[a] ? i : a), idx[0]);
+      if (s.raw[bi] <= 0) return;
+      svg.append('circle').attr('cx', x(months[bi])).attr('cy', y(s.vals[bi])).attr('r', 4.5).style('fill', c).style('stroke', 'var(--color-bg)').attr('stroke-width', 1.5);
+      lbl.push({ x: x(months[bi]), y: y(s.vals[bi]) - 8, t: window.icMonthName(months[bi]), c });
+    });
+  });
+  lbl.sort((a, b) => a.y - b.y);
+  const placed = [];
+  for (const l of lbl) {
+    let yy = l.y;
+    while (placed.some((p) => Math.abs(p.x - l.x) < 34 && Math.abs(p.y - yy) < 16)) yy -= 16;
+    if (yy < m.t + 8) continue;
+    placed.push({ x: l.x, y: yy });
+    svg.append('text').attr('x', Math.min(W - m.r - 16, Math.max(m.l + 18, l.x))).attr('y', yy).attr('text-anchor', 'middle').style('fill', l.c).style('font-weight', 600).text(l.t);
+  }
+  const tip = window.icTip(el);
+  const guide = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).style('stroke', 'var(--cds-chart-reference)').attr('opacity', 0);
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const px = d3.pointer(ev)[0];
+      const i = d3.minIndex(months, (ym) => Math.abs(x(ym) - px));
+      guide.attr('x1', x(months[i])).attr('x2', x(months[i])).attr('opacity', 1);
+      tip.replaceChildren();
+      const h = document.createElement('b'); h.textContent = `${months[i].slice(0, 4)}년 ${Number(months[i].slice(5))}월 · ${P.country}`; tip.append(h);
+      [...series].sort((a, b) => b.raw[i] - a.raw[i]).forEach((s) => {
+        const line = document.createElement('div'); const dot = document.createElement('span'); dot.style.background = window.icColor(s.order);
+        line.append(dot, document.createTextNode(`${s.label}  ${d3.format(',.1f')(s.raw[i])}억${P.scale === 'idx' ? ` (지수 ${Math.round(s.vals[i])})` : ''}`));
+        tip.append(line);
+      });
+      tip.hidden = false;
+      const left = x(months[i]) + 14 + tip.offsetWidth > W ? x(months[i]) - tip.offsetWidth - 14 : x(months[i]) + 14;
+      tip.style.left = Math.max(0, left) + 'px'; tip.style.top = '8px';
+    })
+    .on('pointerleave', () => { tip.hidden = true; guide.attr('opacity', 0); });
+});
+
+dash.draw('multiples', (el) => {
+  const d = dash.data('trend'), pk = dash.data('peaks');
+  el.replaceChildren();
+  if (d.status !== 'ok' || !Array.isArray(d.data)) return;
+  const P = window.icP();
+  const rows = d.data.filter((r) => r.country === P.country);
+  const peaks = pk.status === 'ok' && Array.isArray(pk.data) ? new Map(pk.data.map((p) => [p.key, p])) : new Map();
+  const groups = [...d3.group(rows, (r) => r.key)].sort((a, b) => a[1][0].order - b[1][0].order);
+  for (const [key, R] of groups) {
+    const card = document.createElement('div'); card.className = 'ic-mini';
+    const h = document.createElement('h3'); h.textContent = R[0].label; card.append(h);
+    const p = peaks.get(key);
+    const info = document.createElement('div'); info.className = 'peak';
+    const pre = P.country === '국내' ? 'kr' : 'cn';
+    info.append(document.createTextNode('피크 2025 '));
+    const b1 = document.createElement('b'); b1.textContent = p ? p[pre + '_p25'] : '-'; info.append(b1);
+    info.append(document.createTextNode(' · 2026 '));
+    const b2 = document.createElement('b'); b2.textContent = p ? p[pre + '_p26'] : '-'; info.append(b2);
+    card.append(info);
+    const box = document.createElement('div'); box.style.position = 'relative'; card.append(box);
+    el.append(card);
+    const W = Math.max(220, box.clientWidth || card.clientWidth - 24), H = 120, m = { t: 14, r: 8, b: 20, l: 34 };
+    const by = (yr) => d3.range(1, 13).map((mm) => { const r = R.find((x) => x.ym === `${yr}-${String(mm).padStart(2, '0')}`); return r ? r.amt_eok : (yr === '2026' && mm > 10 ? null : 0); });
+    const a = by('2025'), b = by('2026');
+    const x = d3.scaleLinear().domain([1, 12]).range([m.l, W - m.r]);
+    const y = d3.scaleLinear().domain([0, d3.max([...a, ...b].filter((v) => v !== null)) * 1.15 || 1]).nice(3).range([H - m.b, m.t]);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', `${R[0].label} ${P.country} 월별 매출 2025년과 2026년 비교`);
+    svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(3).tickSize(-(W - m.l - m.r)).tickFormat(d3.format(','))).call((g) => g.select('.domain').remove());
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([1, 3, 5, 7, 9, 11]).tickFormat((v) => v + '월').tickSizeOuter(0));
+    const line = d3.line().defined((v) => v !== null).x((_, i) => x(i + 1)).y((v) => y(v));
+    svg.append('path').datum(a).attr('fill', 'none').style('stroke', 'var(--cds-chart-muted)').attr('stroke-width', 1.8).attr('stroke-dasharray', '4 3').attr('d', line);
+    svg.append('path').datum(b).attr('fill', 'none').style('stroke', dash.colors[0]).attr('stroke-width', 2.2).attr('d', line);
+    [[a, 'var(--cds-chart-muted)'], [b, dash.colors[0]]].forEach(([arr, c]) => {
+      const vals = arr.map((v) => (v === null ? -1 : v)); const i = d3.maxIndex(vals);
+      if (vals[i] > 0) svg.append('circle').attr('cx', x(i + 1)).attr('cy', y(vals[i])).attr('r', 3.5).style('fill', c);
+    });
+    const tip = window.icTip(box);
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const mm = Math.max(1, Math.min(12, Math.round(x.invert(d3.pointer(ev)[0]))));
+        tip.replaceChildren();
+        const hh = document.createElement('b'); hh.textContent = `${mm}월`; tip.append(hh);
+        const l1 = document.createElement('div'); l1.textContent = `2025년 ${a[mm - 1] === null ? '-' : d3.format(',.1f')(a[mm - 1]) + '억'}`; tip.append(l1);
+        const l2 = document.createElement('div'); l2.textContent = `2026년 ${b[mm - 1] === null ? '집계 전' : d3.format(',.1f')(b[mm - 1]) + '억'}`; tip.append(l2);
+        tip.hidden = false;
+        const px = x(mm); tip.style.left = Math.max(0, px + 10 + tip.offsetWidth > W ? px - tip.offsetWidth - 10 : px + 10) + 'px'; tip.style.top = '0px';
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+  }
+});
+
+dash.draw('peakrows', (tb) => {
+  const d = dash.data('peaks');
+  tb.replaceChildren();
+  if (d.status !== 'ok' || !Array.isArray(d.data)) return;
+  for (const r of d.data) {
+    const tr = document.createElement('tr');
+    [['label', ''], ['kr_p25', 'num'], ['kr_p26', 'num'], ['kr_top3', ''], ['cn_p25', 'num'], ['cn_p26', 'num'], ['cn_top3', ''], ['push', '']].forEach(([k, cls]) => {
+      const td = document.createElement('td'); td.textContent = r[k]; if (cls) td.className = cls; tr.append(td);
+    });
+    tb.append(tr);
+  }
+});
+
+dash.draw('timeline', (el) => {
+  const d = dash.data('timeline');
+  el.replaceChildren();
+  if (d.status === 'error') { window.icFail(el); return; }
+  if (d.status !== 'ok' || !Array.isArray(d.data)) return;
+  const P = window.icP();
+  const color = window.icTlColors(d.data);
+  for (let m = 1; m <= 12; m++) {
+    const col = document.createElement('div'); col.className = 'ic-tl-col' + (m >= 2 && m <= 8 ? ' season-ss' : '');
+    const head = document.createElement('div'); head.className = 'ic-tl-m'; head.textContent = m + '월'; col.append(head);
+    if (!d.data.some((x) => x.month === m)) { const e = document.createElement('span'); e.className = 'ic-note'; e.style.textAlign = 'center'; e.textContent = '집계 전'; col.append(e); }
+    for (const r of d.data.filter((x) => x.month === m)) {
+      const c = document.createElement('div'); c.className = 'ic-tl-card'; c.style.borderLeftColor = color.get(r.key);
+      c.title = `${m}월 ${r.rank}위 · ${r.label} · 매출 ${d3.format(',.1f')(r.amt_eok)}억 · 계절지수 ${r.season_idx}`;
+      const rk = document.createElement('span'); rk.className = 'r'; rk.textContent = r.rank + '위';
+      const nm = document.createElement('span'); nm.className = 'n'; nm.textContent = r.label;
+      const v = document.createElement('span'); v.className = 'v';
+      v.textContent = P.tlmode === 'idx' ? `지수 ${r.season_idx} · ${d3.format(',.1f')(r.amt_eok)}억` : `${d3.format(',.1f')(r.amt_eok)}억 · 지수 ${r.season_idx}`;
+      c.append(rk, nm, v); col.append(c);
+    }
+    el.append(col);
+  }
+});
+
+/* ---------- 3차 그래프: 막대·꺾은선 ---------- */
+window.icTlFocus = null;
+window.icTlColors = (rows) => { const keys = [...new Set(rows.map((r) => r.key))]; return new Map(keys.map((k, i) => [k, dash.colors[i % dash.colors.length]])); };
+window.icTlLegend = (el, items, color, focus) => {
+  const wrap = document.createElement('div'); wrap.className = 'ic-chips'; wrap.setAttribute('aria-label', '강조할 아이템 선택');
+  items.forEach((it) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ic-chip'; b.setAttribute('aria-pressed', String(focus === it.key));
+    const i = document.createElement('i'); i.style.background = color.get(it.key);
+    b.append(i, document.createTextNode(it.label));
+    b.addEventListener('click', () => { window.icTlFocus = window.icTlFocus === it.key ? null : it.key; dash.draw('tlbars'); dash.draw('tllines'); });
+    wrap.append(b);
+  });
+  el.append(wrap);
+};
+window.icSSBand = (svg, x0, x1w, top, bottom) => {
+  svg.append('rect').attr('x', x0).attr('y', top).attr('width', Math.max(0, x1w - x0)).attr('height', bottom - top).style('fill', 'var(--color-panel)');
+  svg.append('text').attr('x', (x0 + x1w) / 2).attr('y', top - 8).attr('text-anchor', 'middle').style('font-size', '10px').text('SS 기간 (2~8월)');
+};
+window.icTlTipPos = (tip, el, px, py) => {
+  tip.hidden = false;
+  const W = el.clientWidth || 700;
+  tip.style.left = Math.max(0, px + 14 + tip.offsetWidth > W ? px - tip.offsetWidth - 14 : px + 14) + 'px';
+  tip.style.top = Math.max(0, py - 70) + 'px';
+};
+
+dash.draw('tlbars', (el) => {
+  const d = dash.data('timeline');
+  el.replaceChildren();
+  if (d.status === 'error') { window.icFail(el); return; }
+  if (d.status !== 'ok' || !Array.isArray(d.data) || !d.data.length) return;
+  const P = window.icP(), idx = P.tlmode === 'idx';
+  const val = (r) => (idx ? r.season_idx : r.amt_eok);
+  const color = window.icTlColors(d.data);
+  const focus = color.has(window.icTlFocus) ? window.icTlFocus : null;
+  const W = el.clientWidth || 700, H = 350, m = { t: 30, r: 8, b: 28, l: 44 };
+  const x0 = d3.scaleBand().domain(d3.range(1, 13)).range([m.l, W - m.r]).paddingInner(0.18);
+  const x1 = d3.scaleBand().domain([1, 2, 3]).range([0, x0.bandwidth()]).padding(0.08);
+  const y = d3.scaleLinear().domain([0, (d3.max(d.data, val) || 1) * 1.08]).nice().range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', `${P.xcountry} 1~12월 월별 Top 3 아이템 막대그래프, 막대 높이는 ${idx ? '계절지수' : '매출(억)'}`);
+  const half = x0.step() * x0.paddingInner() / 2;
+  window.icSSBand(svg, x0(2) - half, x0(8) + x0.bandwidth() + half, m.t, H - m.b);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format(','))).call((g) => g.select('.domain').remove());
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x0).tickSizeOuter(0).tickFormat((v) => v + '월'));
+  if (idx) svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(100)).attr('y2', y(100)).style('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+  const tip = window.icTip(el);
+  const bw = x1.bandwidth();
+  d.data.forEach((r) => {
+    const bx = x0(r.month) + x1(r.rank), by = y(val(r)), bh = Math.max(0, H - m.b - by);
+    const dim = focus && r.key !== focus;
+    svg.append('rect').attr('x', bx).attr('y', by).attr('width', bw).attr('height', bh).attr('rx', 2)
+      .style('fill', color.get(r.key)).attr('fill-opacity', dim ? 0.15 : 1)
+      .style('stroke', focus === r.key ? 'var(--color-fg)' : 'none').attr('stroke-width', 1.2)
+      .on('pointermove', (ev) => {
+        tip.replaceChildren();
+        const h = document.createElement('b'); h.textContent = `${r.month}월 ${r.rank}위 · ${r.label}`; tip.append(h);
+        const a = document.createElement('div'); a.textContent = `계절지수 ${r.season_idx}`; tip.append(a);
+        const b = document.createElement('div'); b.textContent = `매출 ${d3.format(',.1f')(r.amt_eok)}억`; tip.append(b);
+        const [px, py] = d3.pointer(ev, el); window.icTlTipPos(tip, el, px, py);
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+    if (bw >= 12) {
+      const t = svg.append('text').attr('transform', `translate(${bx + bw / 2},${H - m.b - 5}) rotate(-90)`).attr('dy', '0.35em')
+        .style('pointer-events', 'none').style('font-size', bw >= 18 ? 'var(--cds-font-size-caption)' : '10px').style('font-weight', 600).text(r.label);
+      const len = t.node().getComputedTextLength();
+      if (len + 10 <= bh) { t.style('fill', 'var(--color-bg)').attr('opacity', dim ? 0.35 : 1); }
+      else if (len + 8 <= by - m.t) { t.attr('transform', `translate(${bx + bw / 2},${by - 4}) rotate(-90)`).style('fill', 'var(--color-fg)').attr('opacity', dim ? 0.3 : 1); }
+      else t.remove();
+    }
+  });
+  const items = [...color.keys()].map((k) => ({ key: k, label: d.data.find((r) => r.key === k).label }));
+  window.icTlLegend(el, items, color, focus);
+});
+
+dash.draw('tllines', (el) => {
+  const h = dash.data('heat'), t = dash.data('timeline');
+  el.replaceChildren();
+  if (h.status === 'error' || t.status === 'error') { window.icFail(el); return; }
+  if (h.status !== 'ok' || t.status !== 'ok' || !Array.isArray(h.data) || !Array.isArray(t.data) || !t.data.length) return;
+  const P = window.icP(), idx = P.tlmode === 'idx';
+  const val = (r) => (idx ? r.season_idx : r.amt_eok);
+  const color = window.icTlColors(t.data);
+  const focus = color.has(window.icTlFocus) ? window.icTlFocus : null;
+  const rankOf = new Map(t.data.map((r) => [r.key + '|' + r.month, r.rank]));
+  const byKey = d3.group(h.data, (r) => r.key);
+  const series = [...color.keys()].filter((k) => byKey.has(k)).map((k) => {
+    const R = [...byKey.get(k)].sort((a, b) => a.month - b.month);
+    return { key: k, label: R[0].label, rows: R };
+  });
+  if (!series.length) return;
+  const W = el.clientWidth || 700, H = 370, m = { t: 30, r: 16, b: 28, l: 44 };
+  const x = d3.scalePoint().domain(d3.range(1, 13)).range([m.l, W - m.r]).padding(0.4);
+  const y = d3.scaleLinear().domain([0, (d3.max(series, (s) => d3.max(s.rows, val)) || 1) * 1.08]).nice().range([H - m.b, m.t]);
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', `${P.xcountry} Top 3 아이템의 1~12월 ${idx ? '계절지수' : '매출'} 꺾은선 그래프`);
+  const half = x.step() / 2;
+  window.icSSBand(svg, x(2) - half, x(8) + half, m.t, H - m.b);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format(','))).call((g) => g.select('.domain').remove());
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickSizeOuter(0).tickFormat((v) => v + '월'));
+  if (idx) svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(100)).attr('y2', y(100)).style('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 3');
+  const line = d3.line().defined((r) => val(r) !== null).x((r) => x(r.month)).y((r) => y(val(r)));
+  const order = focus ? [...series.filter((s) => s.key !== focus), ...series.filter((s) => s.key === focus)] : series;
+  order.forEach((s) => {
+    const c = color.get(s.key), dim = focus && s.key !== focus, hi = focus === s.key;
+    svg.append('path').datum(s.rows).attr('fill', 'none').style('stroke', c).attr('stroke-width', hi ? 3 : 1.8).attr('stroke-opacity', dim ? 0.12 : 0.9).attr('d', line);
+    s.rows.filter((r) => rankOf.has(s.key + '|' + r.month)).forEach((r) => {
+      svg.append('circle').attr('cx', x(r.month)).attr('cy', y(val(r))).attr('r', hi ? 5.5 : 4.5).style('fill', c).style('stroke', 'var(--color-bg)').attr('stroke-width', 1.5).attr('opacity', dim ? 0.15 : 1);
+    });
+    if (hi) {
+      const okRows = s.rows.filter((r) => val(r) !== null);
+      const pk = okRows.reduce((a, r) => (val(r) > val(a) ? r : a), okRows[0]);
+      svg.append('text').attr('x', x(pk.month)).attr('y', Math.max(m.t + 10, y(val(pk)) - 10)).attr('text-anchor', 'middle').style('fill', c).style('font-weight', 700)
+        .text(`${s.label} · ${pk.month}월 ${d3.format(',')(Math.round(val(pk) * 10) / 10)}`);
+    }
+  });
+  const tip = window.icTip(el);
+  const guide = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).style('stroke', 'var(--cds-chart-reference)').attr('opacity', 0);
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px, py] = d3.pointer(ev, el);
+      const mm = d3.range(1, 13)[d3.minIndex(d3.range(1, 13), (v) => Math.abs(x(v) - d3.pointer(ev)[0]))];
+      guide.attr('x1', x(mm)).attr('x2', x(mm)).attr('opacity', 1);
+      tip.replaceChildren();
+      const hd = document.createElement('b'); hd.textContent = `${mm}월 · ${P.xcountry}`; tip.append(hd);
+      const shown = series.filter((s) => rankOf.has(s.key + '|' + mm) || s.key === focus)
+        .map((s) => ({ s, r: s.rows.find((r) => r.month === mm), rk: rankOf.get(s.key + '|' + mm) }))
+        .filter((o) => o.r && o.r.season_idx !== null).sort((a, b) => (a.rk || 9) - (b.rk || 9));
+      shown.forEach(({ s, r, rk }) => {
+        const ln = document.createElement('div'); const dot = document.createElement('span'); dot.style.background = color.get(s.key);
+        ln.append(dot, document.createTextNode(`${rk ? rk + '위 ' : ''}${s.label}  지수 ${r.season_idx} · ${d3.format(',.1f')(r.amt_eok)}억`));
+        tip.append(ln);
+      });
+      window.icTlTipPos(tip, el, px, py);
+    })
+    .on('pointerleave', () => { tip.hidden = true; guide.attr('opacity', 0); });
+  window.icTlLegend(el, series, color, focus);
+});
+</script>
+
+<!-- ---------- 데이터 불러오기: data/ 폴더의 JSON 또는 CSV ---------- -->
+<script>
+(async () => {
+  const loading = document.getElementById('ic-loading'), app = document.getElementById('ic-app');
+  const norm = (rows) => rows.map((r) => ({ ...r, amt: Number(r.amt) }));
+  try {
+    let rows = null;
+    try {
+      const res = await fetch('data/category_sales_monthly.json', { cache: 'no-cache' });
+      if (res.ok) { const j = await res.json(); rows = Array.isArray(j) ? j : (j.rows || j.data || j.results); }
+    } catch (e) { /* JSON 없으면 CSV로 */ }
+    if (!rows) rows = await d3.csv('data/category_sales_monthly.csv');
+    if (!rows || !rows.length) throw new Error('rows empty');
+    dash._load(norm(rows));
+    loading.hidden = true; app.hidden = false;
+    dash._render();
+  } catch (e) {
+    console.error(e);
+    loading.textContent = '데이터 파일을 찾지 못했습니다. data/category_sales_monthly.json 또는 .csv 가 있는지 확인하세요. (파일을 직접 더블클릭해 열면 브라우저 보안 때문에 읽지 못합니다. GitHub Pages 링크나 로컬 서버로 열어 주세요.)';
+  }
+})();
+</script>
+</body>
+</html>
