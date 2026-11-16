@@ -11,8 +11,10 @@ MLB 국내·중국 월별 × 아이템 × 시즌구분 매출(2025-01 ~ 2026-11-
 ## 폴더 구성
 
 ```
-index.html                         대시보드 페이지 (이 파일 하나로 동작)
-data/category_sales_monthly.json   원본 로우데이터 (CSV로 두어도 됨: category_sales_monthly.csv)
+index.html                         대시보드 페이지
+data/category_sales_monthly.json   원본 로우데이터 (같은 내용의 .csv도 함께 있음)
+fonts/                             나눔스퀘어 네오 웹폰트 (Regular·Bold·ExtraBold)
+vendor/d3.min.js                   그래프 라이브러리 d3 (인터넷 CDN 없이 동작)
 .nojekyll                          GitHub Pages가 파일을 그대로 쓰게 하는 빈 파일
 README.md                          이 안내문
 ```
@@ -52,4 +54,5 @@ README.md                          이 안내문
 - 시즌 기간: SS = 2~8월, FW = 9월~다음 해 1월로 가정했습니다.
 - 계절지수 = 그 달 매출 ÷ 해당 아이템 월평균 × 100. 순위는 국가 매출 상위 25개 항목만 대상으로 합니다.
 - 2026년은 10월까지 집계했습니다(11월 진행 중).
-- 그래프 라이브러리 d3를 jsDelivr CDN에서 불러옵니다. 인터넷이 막힌 환경에서는 그래프가 그려지지 않습니다.
+- 글꼴(나눔스퀘어 네오)과 그래프 라이브러리(d3)를 저장소 안에 함께 넣어, 외부 CDN 없이 동작합니다.
+- 나눔스퀘어 네오는 네이버의 무료 글꼴로 SIL 오픈 폰트 라이선스(OFL 1.1)를 따르며, 재배포가 허용됩니다. d3는 ISC 라이선스입니다.
